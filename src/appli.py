@@ -43,7 +43,8 @@ class Interface(Frame):
         self.yCont = []
         
         #Build widgets
-        self.message = Label(self, text="Open an image")
+        self.message = Label(self,        self.button_open = Button(self, text="Open", fg="blue", 
+ text="Open an image")
         self.message.pack()
                 
         self.button_click = Button(self, text="Draw contour", fg="red",
@@ -53,7 +54,6 @@ class Interface(Frame):
         self.button_stop = Button(self, text="Stop contour", command=self.stop_click)
         self.button_stop.pack(side="right")
         
-        self.button_open = Button(self, text="Open", fg="blue", 
                                   command=self.openImg)
         self.button_open.pack(side="left")
         
