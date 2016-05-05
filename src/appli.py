@@ -29,12 +29,18 @@ class Interface(Frame):
         Frame.__init__(self, fenetre, width=768, height=576, **kwargs)
         self.pack(fill=BOTH)
         self.nb_clic = 0
+        #Coordinates of pxl representing the contour
         self.xCoor = []
         self.yCoor = []
+        #Coordinates of the prostate center
         self.xCenter = 0
         self.yCenter = 0
+        #List of computed angles and radius from center
         self.angles = []
         self.radii = []
+        #Coordinates of pxl inside narrow contour search
+        self.xCont = []
+        self.yCont = []
         
         #Build widgets
         self.message = Label(self, text="Open an image")
@@ -81,10 +87,70 @@ class Interface(Frame):
     def getCenter(self, event):
         self.xCenter = event.x
         self.yCenter = event.y
+        self.compute_anglesAndRadii()
+        self.get_narrowContSearchPxl()
+        self.process_img()
+#        for i in range(0,len(self.xCoor)-1):
+#            self.angles.append( np.arctan2(self.yCoor[i]-self.yCenter, self.xCoor[i]-self.xCenter) )
+#            self.radii.append( np.sqrt((self.yCoor[i]-self.yCenter)**2 + (self.xCoor[i]-self.xCenter)**2 ))
+#        print (self.angles, self.radii)
+        
+    def compute_anglesAndRadii(self):
         for i in range(0,len(self.xCoor)-1):
             self.angles.append( np.arctan2(self.yCoor[i]-self.yCenter, self.xCoor[i]-self.xCenter) )
             self.radii.append( np.sqrt((self.yCoor[i]-self.yCenter)**2 + (self.xCoor[i]-self.xCenter)**2 ))
         print (self.angles, self.radii)
+        
+    def get_narrowContSearchPxl(self):
+        for i in range(0,len(self.radii)):
+            for j in range(-10,10):
+                self.xCont.append(int(np.round(self.xCenter+self.radii[i]*np.cos(self.angles[i])+j*np.cos(self.angles[i]))))
+                self.yCont.append(int(np.round(self.yCenter+self.radii[i]*np.sin(self.angles[i])+j*np.sin(self.angles[i]))))
+            
+#        print (self.xCont, self.yCont)
+        
+    def process_img(self):
+#        self.pixels = list(self.img.getdata())
+#        width, height = self.img.size
+#        self.pixels = [self.pixels[i * width:(i + 1) * width] for i in range(1,height)]
+#        for i in range(self.xCenter, self.xCenter+100):
+#            for row in self.pixels:
+#                row[i] = 0
+        #Convert to array and Test removing pixels
+        self.pixels = np.asarray(self.img.getdata(), np.uint16)
+        width, height = self.img.size
+        self.pixels = np.reshape(self.pixels, (height, width), order='A')
+        for i in range(self.xCenter,self.xCenter+100):
+            for j in range(self.yCenter,self.yCenter+100):
+                self.pixels[i,j]=0
+
+        #Convert to Image and display in canvas
+        self.img_proc = Image.new(self.img.mode, self.img.size)
+#        self.img_proc.putdata(self.pixels)
+#        self.imgtk = ImageTk.PhotoImage(self.img_proc)
+
+        #Remove pixels directly from Image
+        for i in range(self.xCenter,self.xCenter+100):
+            for j in range(self.yCenter,self.yCenter+100):
+                self.img.putpixel((i,j),0)
+        
+        for i in range(0,len(self.xCont)):
+            self.img_proc.putpixel((self.xCont[i],self.yCont[i]),self.img.getpixel((self.xCont[i],self.yCont[i])))
+        
+                
+        self.imgtk = ImageTk.PhotoImage(self.img_proc)
+        self.canvas.create_image(0,0,image=self.imgtk,anchor="nw")
+        self.canvas.config(scrollregion=self.canvas.bbox(ALL))
+#        io.imsave("pxlRemovedArray.png", self.pixels)
+        
+    def openImg(self):
+        #open image and display in canvas
+        File = askopenfilename(parent=fenetre, initialdir="C:/",title='Choose an image.')
+        self.img = Image.open(File)
+        self.imgtk = ImageTk.PhotoImage(self.img)
+        self.canvas.create_image(0,0,image=self.imgtk,anchor="nw")
+        self.canvas.config(scrollregion=self.canvas.bbox(ALL))
+        self.message["text"]="Now press on click center do draw the prostate shape"
         
     def cliquer(self):
         """there was a click on the button
@@ -97,14 +163,7 @@ class Interface(Frame):
 #        self.canvas.unbind("<Button 1>") #use returned variable of bind fct as 2nd param if unbind only one fct 
         self.canvas.unbind("<B1-Motion>")
         print (self.xCoor[len(self.xCoor)-1])
-        
-    def openImg(self):
-        #open image and display in canvas
-        File = askopenfilename(parent=fenetre, initialdir="C:/",title='Choose an image.')
-        self.img = ImageTk.PhotoImage(Image.open(File))
-        self.canvas.create_image(0,0,image=self.img,anchor="nw")
-        self.canvas.config(scrollregion=self.canvas.bbox(ALL))
-        self.message["text"]="Now press on click center do draw the prostate shape"
+
     
     def click_center(self):
         self.canvas.bind("<Button 1>", self.getCenter)

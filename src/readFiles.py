@@ -81,7 +81,43 @@ Display 17th image
 """
 k = 17
 im = DS[k].pixel_array
-im = img_as_float(im)
+
+plan = DS[k]
+shape = plan.pixel_array.shape
+
+"""Rescale for saving in png"""
+image_2d = []
+max_val = 0
+for row in plan.pixel_array:
+    pixels = []
+    for col in row:
+        pixels.append(col)
+        if col > max_val: max_val = col
+    image_2d.append(pixels)
+        
+# Rescalling greyscale between 0-255
+image_2d_scaled = []
+for row in image_2d:
+    row_scaled = []
+    for col in row:
+        col_scaled = int((float(col)/float(max_val))*255.0)
+        row_scaled.append(col_scaled)
+    image_2d_scaled.append(row_scaled)
+
+io.imsave("prostateRescaled.png", image_2d_scaled)
+## Load dimensions based on the number of rows, columns, and slices (along the Z axis)
+#ConstPixelDims = (int(DS[k].Rows), int(DS[k].Columns), len(DS))
+## Load spacing values (in mm)
+#ConstPixelSpacing = (float(DS[k].PixelSpacing[0]), float(DS[k].PixelSpacing[1]), float(DS[k].SliceThickness))
+#
+#x = np.arange(0.0, (ConstPixelDims[0]+1)*ConstPixelSpacing[0], ConstPixelSpacing[0])
+#y = np.arange(0.0, (ConstPixelDims[1]+1)*ConstPixelSpacing[1], ConstPixelSpacing[1])
+#z = np.arange(0.0, (ConstPixelDims[2]+1)*ConstPixelSpacing[2], ConstPixelSpacing[2])
+
+## The array is sized based on 'ConstPixelDims'
+#ArrayDicom = np.zeros(ConstPixelDims, dtype=DS[k].pixel_array.dtype)
+
+#im = img_as_float(image_2d_scaled)
 #plt.figure()
 #plt.imshow(im, cmap=pl.cm.bone)
 #plt.show()
@@ -99,7 +135,7 @@ im_rescale = exposure.rescale_intensity(im, in_range=(p2,p98))
 im_equ = exposure.equalize_hist(im)
 #Adaptive Equalization
 im_adapteq = exposure.equalize_adapthist(im, clip_limit=0.03)
-#io.imsave("prostate.png", im*255)
+#io.imsave("prostateOrigin.png", im)
 
 #%%
 """
