@@ -42,9 +42,12 @@ for i in range(1,100):
 #io.imsave("imgArray.png", imgArray2)
 
 """Load mat data for polar coordinates of prostate shape"""
-polCoor = spio.loadmat("th_r.mat")
-polCoor9 = spio.loadmat("th_r_9.mat")
-
+coordinates = spio.loadmat("th_r.mat")["out"]
+#polCoor9 = spio.loadmat("th_r_9.mat")
+#coordinates = coordinates["out"]
+angles = coordinates[:,0]
+radii = coordinates[:,1]
+print (angles[2])
  
 #imgRecovered = Image.open(io.StringIO(pixels))
 imgRecov = Image.new(img.mode, img.size)
