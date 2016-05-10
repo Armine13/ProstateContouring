@@ -19,7 +19,7 @@ import numpy as np
 
 from skimage import img_as_float
 from skimage import io
-
+from scipy import io
         
 """Create a class"""
 class Interface(Frame):
@@ -40,7 +40,7 @@ class Interface(Frame):
         self.yCont = []
         
         #get contour shape average from file
-        self.polCoor = spio.loadmat("th_r.mat")["out"]
+        self.polCoor = io.loadmat("th_r.mat")["out"]
         self.angles2 = self.polCoor[:,0]
         self.radii2 = self.polCoor[:,1]
     
