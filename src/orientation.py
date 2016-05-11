@@ -65,6 +65,7 @@ def filterOrientation(im, shapeContourIm, radii, angles, center, sigma, sigma_an
     yCenter = center[0]
     xCenter = center[1]
     stdShapeOrient = skeletonOrientation(shapeContourIm)
+    
     imOrient = skeletonOrientation(im)
 
     for i in range(0,radii.shape[0]):
@@ -83,7 +84,9 @@ import numpy as np
 import pylab
 from scipy import io
 from skimage import measure
+from skimage import io as scio
 from PIL import Image
+import matplotlib.pyplot as plt
 
 I = Image.open('canny.png') #black and white image filtered with canny
 #convert image to (0-1)
@@ -101,7 +104,13 @@ s = 10 #std of radii
 s_angle = np.deg2rad(2) #std for region of permissible angle
 
 I = filterOrientation(I, stdShapeIm, radii, angles, center, s, s_angle)
-    
+
+#stdShapeOrient2 = skeletonOrientation(stdShapeIm)
+#pylab.imshow(stdShapeOrient2, cmap=plt.cm.gray)
+#pylab.show()
+
 #pylab.imshow(stdShapeOrient)
-pylab.imshow(I)
+pylab.imshow(I, cmap=plt.cm.gray)
 pylab.show()
+
+scio.imsave("orientation.png", I)

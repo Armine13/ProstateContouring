@@ -17,8 +17,10 @@ import dicom
 import os
 import numpy as np
 
-from skimage import img_as_float
+from skimage import img_as_float, img_as_ubyte
 from skimage import io
+from skimage import feature
+from skimage import exposure
 from scipy import io
         
 """Create a class"""
@@ -100,15 +102,16 @@ class Interface(Frame):
 #        for i in range(self.xCenter, self.xCenter+100):
 #            for row in self.pixels:
 #                row[i] = 0
-        #Convert to array and Test removing pixels
-#        self.pixels = np.asarray(self.img.getdata(), np.uint16)
-#        width, height = self.img.size
-#        self.pixels = np.reshape(self.pixels, (height, width), order='A')
-#        for i in range(self.xCenter,self.xCenter+100):
-#            for j in range(self.yCenter,self.yCenter+100):
-#                self.pixels[i,j]=0
-
-        #Convert to Image and display in canvas
+    
+#        Convert to array and apply contrast enhancement and canny
+        self.pixels = np.asarray(self.img.getdata(), np.uint8)
+        width, height = self.img.size
+        self.pixels = np.reshape(self.pixels, (height, width), order='A')
+        self.pixels = img_as_ubyte(exposure.equalize_hist(img_as_float(self.pixels)))
+        self.pixels = img_as_ubyte(feature.canny(img_as_float(self.pixels), sigma=1.0, low_threshold=0.1, high_threshold=0.4))
+        self.img = Image.fromarray(self.pixels, self.img.mode)
+                           
+#        Convert to Image and display in canvas
         self.img_proc = Image.new(self.img.mode, self.img.size)
         
         for i in range(0,len(self.xCont)):
