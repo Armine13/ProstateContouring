@@ -6,92 +6,139 @@ Created on Tue May 10 22:39:10 2016
 """
 
 #%%
-"""Import libraries
+"""List of functions
+        class ProstateContouring
+            polarFromContourImage(self, contIm)
+            readModelShape(self, array)
+            detectEdges(self)
+            get_narrowContSearchPxl(self, s = 10)
+            filterOrientation(self, sigma_angle = np.deg2rad(15))
+        other
+            skeletonOrientation(skel)
 """
 
 import numpy as np
 from skimage import measure
 from skimage import feature
-from scipy import io
 
-"""Create a class"""
 class ProstateContouring:
-    def __init__(self, array):
+    def __init__(self, array, cy, cx):
         self.image = array
-
-    def setCenter(self, cy, cx):
         self.xCenter = cx
         self.yCenter = cy
 
-    def setShapeFromFile(self, filename):
-        """ Takes the file containing prostate shape in polar coordinates"""
-        self.polCoor = io.loadmat(filename)["out"]
-        self.angles = self.polCoor[:, 0]
-        self.radii = self.polCoor[:, 1]
+    def polarFromContourImage(self, contIm):
+        #""""
+            #Takes a contour image and returns array of corresponding
+            #polar coordinates: angle, radius, orientation of edge
+        #""""
 
-    def setShapeFromArray(self, array):
+        pol = np.empty((0,3), int)
+        sz = np.shape(contIm)
+
+        #Find orientations in contour image
+        contO = skeletonOrientation(contIm)
+
+        cx = self.xCenter
+        cy = self.yCenter
+
+        #For each non-zero pixel in image, extract radius, angle and orientation
+        # relative to center
+        for i in range(0, sz[0]):
+            for j in range(0, sz[1]):
+                if contIm[i, j] > 0:
+                    r = np.sqrt((i - cy)**2 + (j - cx)**2)
+                    dy = i - cy
+                    dx = j - cx
+                    th = np.arctan2(-dy, dx)
+                    pol = np.append(pol, np.array([[th, r, contO[i, j]]]), axis=0)
+
+        #Sort by increasing angles
+        pol = pol[pol[:,0].argsort()]
+
+        return pol
+        #pol9 = np.empty((0,2), int)
+        #a = 180
+        #for i in range(20, 0, -1):
+
+            #temp = out;
+            #temp = out[np.rad2deg(out[:,0]) > (i-1)*9,:];
+            #temp = temp[np.rad2deg(temp[:,0]) <= i*9,:];
+            #for k in range(1, 10):
+                #pol9 = np.append(pol9, np.array([[np.deg2rad(a), np.mean(temp[:,1], axis=0)]]), axis=0)
+                #a = a - 1
+
+        #for i in range(1, 21):
+            #temp = out;
+            #temp = out[np.rad2deg(out[:,0]) <= -(i-1)*9,:];
+            #temp = temp[np.rad2deg(temp[:,0]) > -i*9,:];
+            #for k in range(1, 10):
+                #pol9 = np.append(pol9, np.array([[np.deg2rad(a), np.mean(temp[:,1], axis=0)]]), axis=0)
+                #a = a - 1
+        #return pol9
+
+    def readModelShape(self, array):
         """ Takes the file containing prostate shape in polar coordinates"""
-        self.polCoor = array
+        #self.polCoor = array
         self.angles = array[:, 0]
         self.radii = array[:, 1]
+        self.orients = array[:,2]
 
-    def readShape(self, contourImage):
-        """ Reads a binary contour imagee and returs the polar coordinates of
-            the shape in two columns:
-            angle in radians and radii
-        """
     def detectEdges(self):
         self.image = feature.canny(self.image, sigma=1.0, low_threshold=0.001, high_threshold=0.005)
-        #edges_img = feature.canny(im, sigma=1.0, low_threshold=0.001, high_threshold=0.005)
-        #edges_rescale = feature.canny(im_rescale, sigma=1.0, low_threshold=0.1, high_threshold=0.4)
-        #edges_equ = feature.canny(im_equ, sigma=1.0, low_threshold=0.1, high_threshold=0.4)
-        #edges_adapteq = feature.canny(im_adapteq, sigma=1.0, low_threshold=0.1, high_threshold=0.4)
+        return self.image
 
     def get_narrowContSearchPxl(self, s = 10):
-
+        self.sigma = s
         sz = np.shape(self.image)
         newIm = np.zeros(sz)
 
         for i in range(0, self.radii.shape[0]):
-            for j in range(-s, s):
-                x = int(np.round(self.xCenter+self.radii[i]*np.cos(
-                    self.angles[i])+j*np.cos(self.angles[i])))
-                y = int(np.round(self.yCenter+self.radii[i]*np.sin(
-                    -self.angles[i])+j*np.sin(-self.angles[i])))
-                newIm[y, x] = self.image[y, x]
+            x = int(np.round(self.xCenter+self.radii[i]*np.cos(self.angles[i])))
+            y = int(np.round(self.yCenter+self.radii[i]*np.sin(-self.angles[i])))
 
+            for j in range(-self.sigma, +self.sigma+1):
+                for k in range(-self.sigma, self.sigma+1):
+                    if x + j >= 0 and x + j < sz[1] and y + k >= 0 and y + k < sz[0]:
+                        newIm[y + k, x + j] = self.image[y + k, x + j]
         self.image = newIm
+        return self.image
 
-    def createContourFromPolar(self):
-        #Creating the shape info image
-
-        stdShape = np.zeros(np.shape(self.image)) #same size as input image
-        for i in range(0, self.radii.shape[0]):
-            stdShape[int(np.round(self.yCenter-self.radii[i]*np.sin(self.angles[i]))),
-                int(np.round(self.xCenter+self.radii[i]*np.cos(self.angles[i])))] = 1
-        return stdShape
-
-    def filterOrientation(self, sigma = 10, sigma_angle = 10):
+    def filterOrientation(self, sigma_angle = np.deg2rad(15)):
         """"
             Filters out edges from array im, keeping edges that are oriented similarly to
             the edges in shapeContourIm(with permissible standard deviation sigma_angle)
         """
-        shapeContourIm = self.createContourFromPolar()
-        stdShapeOrient = skeletonOrientation(shapeContourIm)
-        imOrient = skeletonOrientation(self.image)
+        #Extract orientations from current image
+        imageOrients = skeletonOrientation(self.image)
 
-        for i in range(0,self.radii.shape[0]):
-            for j in range(-sigma, sigma):
-                #Retrieve correct orientation for current angle
-                stdOr = stdShapeOrient[int(np.round(self.yCenter-self.radii[i]*
-                    np.sin(self.angles[i]))), int(np.round(self.xCenter+self.radii[i]*np.cos(self.angles[i])))]
+        #find all non-zero elements of edge image
+        pts = np.transpose(np.nonzero(self.image))
 
-                y = int(np.round(self.yCenter+self.radii[i]*np.sin(-self.angles[i])+j*np.sin(-self.angles[i])))
-                x = int(np.round(self.xCenter+self.radii[i]*np.cos(self.angles[i])+j*np.cos(self.angles[i])))
-                #if orientation at current pixel is not in permissible range, set pixel to 0
-                if not (self.image[y, x] > 0 and imOrient[y, x] <=
-                    stdOr + sigma_angle and imOrient[y, x] >= stdOr - sigma_angle):
-                    self.image[y, x] = 0
+        #loop over all non-zero elements in edge image
+        for (y, x) in pts:
+            #Find angle of the pixel, relative to selected center point
+            dy = y - self.yCenter
+            dx = x - self.xCenter
+            th = np.arctan2(-dy, dx)
+
+            #find corresponding orientation value in model contour
+            (idx, t) = min(enumerate(self.angles), key=lambda x: abs(x[1]-th))
+            orient = self.orients[idx]
+
+            #compare orientation at pt (x,y) to orientation in model contour
+            #if they are different, set pixel to 0
+            if not (imageOrients[y, x] <= orient + sigma_angle and imageOrients[y, x] >= orient - sigma_angle):
+                self.image[y, x] = 0
+        return self.image
+
+    #def contourFromPolar(self):
+        ##Creating the shape info image
+        #stdShape = np.zeros(np.shape(self.image)) #same size as input image
+        #for i in range(0, self.radii.shape[0]):
+            #stdShape[int(np.round(self.yCenter-self.radii[i]*np.sin(self.angles[i]))),
+                #int(np.round(self.xCenter+self.radii[i]*np.cos(self.angles[i])))] = 1
+        #return stdShape
 
 def skeletonOrientation(skel):
     """
@@ -138,4 +185,4 @@ def skeletonOrientation(skel):
         #Set orientation of the center pixel equal to the calculated one
         Orientations[row[ii], col[ii]] = rp[0].orientation
     return Orientations
-#------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------
