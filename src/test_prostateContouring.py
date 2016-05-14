@@ -4,7 +4,7 @@ import pylab
 from skimage import io
 
 #im = dicom.read_file("../3D_T2/Image00032")
-im = io.imread("im36.png")
+im = io.imread("prostate36.png")
 #im = im.pixel_array
 
 xCenter = 187
@@ -18,7 +18,9 @@ cont.detectEdges()
 
 cont.get_narrowContSearchPxl(10)
 
-cont.filterOrientation(np.deg2rad(8))
+cont.filterOrientation(np.deg2rad(20))
+cont.filterContinuity(polars, 3)
+
 pylab.imshow(cont.image, cmap='gray')
 pylab.show()
 

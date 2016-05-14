@@ -79,7 +79,7 @@ N = i #number of images
 """
 Display 17th image
 """
-k = 17
+k = 36
 im = DS[k].pixel_array
 
 plan = DS[k]
@@ -104,7 +104,7 @@ for row in image_2d:
         row_scaled.append(col_scaled)
     image_2d_scaled.append(row_scaled)
 
-io.imsave("prostateRescaled.png", image_2d_scaled)
+io.imsave("prostate36.png", image_2d_scaled)
 ## Load dimensions based on the number of rows, columns, and slices (along the Z axis)
 #ConstPixelDims = (int(DS[k].Rows), int(DS[k].Columns), len(DS))
 ## Load spacing values (in mm)
