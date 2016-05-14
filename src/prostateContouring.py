@@ -20,6 +20,7 @@ Created on Tue May 10 22:39:10 2016
 import numpy as np
 from skimage import measure
 from skimage import feature
+import scipy, scipy.ndimage, scipy.interpolate, numpy.fft, math
 
 class ProstateContouring:
     def __init__(self, array, cy, cx):
@@ -84,8 +85,8 @@ class ProstateContouring:
         self.radii = array[:, 1]
         self.orients = array[:,2]
 
-    def detectEdges(self):
-        self.image = feature.canny(self.image, sigma=1.0, low_threshold=0.001, high_threshold=0.005)
+    def detectEdges(self, canny_sigma):
+        self.image = feature.canny(self.image, sigma=canny_sigma)#, low_threshold=0.001, high_threshold=0.005)
         return self.image
 
     def get_narrowContSearchPxl(self, s = 10):
@@ -132,13 +133,115 @@ class ProstateContouring:
                 self.image[y, x] = 0
         return self.image
 
-    #def contourFromPolar(self):
-        ##Creating the shape info image
-        #stdShape = np.zeros(np.shape(self.image)) #same size as input image
-        #for i in range(0, self.radii.shape[0]):
-            #stdShape[int(np.round(self.yCenter-self.radii[i]*np.sin(self.angles[i]))),
-                #int(np.round(self.xCenter+self.radii[i]*np.cos(self.angles[i])))] = 1
-        #return stdShape
+    def enforceContinuity(self):
+        
+        arI = np.asarray(self.image) / np.max(np.max(self.image))
+
+        """Remove too small regions"""
+        labels_init = measure.label(arI)
+        max_lab = np.max(labels_init)
+        for m in range(1,max_lab+1):
+            if((labels_init==m).sum()<3):
+                mask = ~(labels_init==m)
+                arI = arI*mask
+
+        """Preallocate variables"""
+        ray_w = 5 #width of the beam search
+        half_w = int(ray_w/2)
+        diag = np.zeros([102,ray_w])
+        new_img = arI
+        y = np.zeros(ray_w)
+        x = np.zeros(ray_w)
+
+
+        for i in range(0,len(self.angles)):
+            labels = measure.label(new_img, neighbors=8 )
+            """Get labels in a diagonal beam"""
+            for j in range(0,100):
+                for s in range(-half_w,half_w+1):
+                    y[s+1] = int(np.round(self.yCenter+(j+s)*np.sin(-self.angles[i])))
+                    x[s+1] = int(np.round(self.xCenter+(j+s)*np.cos(self.angles[i])))
+                    diag[j][s+1] = labels[y[s+1],x[s+1]]
+
+        """Get number of labels in a beam"""
+        labDiag = np.array(list(set(diag[np.nonzero(diag)])))
+        nLab = len(labDiag)
+
+        """Get the size of each region detected"""
+        rp = measure.regionprops(labels)
+        sz_labels = np.zeros(nLab)
+        for k in range(0,nLab):
+            sz_labels[k] = (labels==labDiag[k]).sum()
+
+        """Discard the smallest edges if there are more than 1 edge in the beam"""
+        if(nLab>1):
+            #remove the smallest region from the image
+            min_lab = np.argmin(sz_labels)
+            ind_lab = ~(labels==labDiag[min_lab])
+            new_img = new_img*ind_lab
+
+        self.image = new_img
+        return self.image
+
+    def fillMissingArea(self):
+        c = 0
+        for i in range(0, self.radii.shape[0]):
+            noEdge = True
+            for j in range(-self.sigma, self.sigma + 1):
+                x = int(np.round(self.xCenter+self.radii[i]*np.cos(self.angles[i])+j*np.cos(self.angles[i])))
+                y = int(np.round(self.yCenter+self.radii[i]*np.sin(-self.angles[i])+j*np.sin(-self.angles[i])))
+                if self.image[y, x] > 0:
+                    noEdge = False
+                    c = 0
+                    break
+            if noEdge:
+                c = c + 1
+                if c == 9 and i - 4 >= 0:
+                    c = 0
+                    self.image[int(np.round(self.yCenter-self.radii[i-4]*np.sin(self.angles[i-4]))), int(np.round(self.xCenter+self.radii[i-4]*np.cos(self.angles[i-4])))] = 1
+        return self.image
+
+    def createContour(self):
+        y, x = numpy.nonzero(self.image)
+
+        C = (x - self.xCenter) + 1j * (y - self.yCenter)
+        angles = numpy.angle(C)
+        distances = numpy.absolute(C)
+        sortidx = numpy.argsort( angles )
+        angles = angles[ sortidx ]
+        distances = distances[ sortidx ]
+
+        # copy first and last elements with angles wrapped around. needed so can interpolate over full range -pi to pi
+        angles = numpy.hstack(([ angles[-1] - 2*math.pi ], angles, [ angles[0] + 2*math.pi ]))
+        distances = numpy.hstack(([distances[-1]], distances, [distances[0]]))
+
+        # interpolate to evenly spaced angles
+        f = scipy.interpolate.interp1d(angles, distances)
+        angles_uniform = scipy.linspace(-math.pi, math.pi, num=200, endpoint=False) 
+        distances_uniform = f(angles_uniform)
+
+        # fft and inverse fft
+        fft_coeffs = numpy.fft.rfft(distances_uniform)
+        # zero out all but lowest 10 coefficients
+        fft_coeffs[11:] = 0
+        distances_fit = numpy.fft.irfft(fft_coeffs)
+
+        contour = np.zeros(np.shape(self.image)) #same size as input image
+        for i in range(0, angles_uniform.shape[0]):
+            contour[int(np.round(self.yCenter-distances_uniform[i]*np.sin(angles_uniform[i]))),int(np.round(self.xCenter+distances_uniform[i]*np.cos(angles_uniform[i])))] = 1
+        self.image = contour
+        return contour
+
+
+##        
+##    def contourFromPolar(self):
+##        """Creating the shape info image"""
+##        stdShape = np.zeros(np.shape(self.image)) #same size as input image
+##        for i in range(0, self.radii.shape[0]):
+##            stdShape[int(np.round(self.yCenter-self.radii[i]*np.sin(self.angles[i]))),
+##                int(np.round(self.xCenter+self.radii[i]*np.cos(self.angles[i])))] = 1
+##        return stdShape
+
 
 def skeletonOrientation(skel):
     """

@@ -3,8 +3,9 @@ from prostateContouring import *
 import pylab
 from skimage import io
 
-#im = dicom.read_file("../3D_T2/Image00032")
-im = io.imread("im36.png")
+#im = dicom.read_file("../3D_T2/Image00033")
+im = io.imread("im31.png")
+original = im
 #im = im.pixel_array
 
 xCenter = 187
@@ -12,13 +13,24 @@ yCenter = 147
 
 cont = ProstateContouring(im, yCenter, xCenter)
 polars = cont.polarFromContourImage(io.imread('contour.png'))
+angles = polars[:,0]
+radii = polars[:,1]
+
 cont.readModelShape(polars)
 
-cont.detectEdges()
+edgeIm = cont.detectEdges(1)
 
-cont.get_narrowContSearchPxl(10)
+sigma = 5
+cont.get_narrowContSearchPxl(sigma)
 
-cont.filterOrientation(np.deg2rad(8))
-pylab.imshow(cont.image, cmap='gray')
+cont.filterOrientation(np.deg2rad(5))
+
+im = cont.enforceContinuity()
+
+im = cont.fillMissingArea()
+
+cont.createContour()
+
+pylab.imshow(original, cmap=pylab.gray())
+pylab.imshow(cont.image,interpolation='none',alpha=0.5)
 pylab.show()
-
