@@ -3,9 +3,13 @@ from prostateContouring import *
 import pylab
 from skimage import io
 
+
 #im = dicom.read_file("../3D_T2/Image00033")
 im = io.imread("im31.png")
 original = im
+
+#im = dicom.read_file("../3D_T2/Image00032")
+#im = io.imread("prostate36.png")
 #im = im.pixel_array
 
 xCenter = 187
@@ -23,9 +27,12 @@ edgeIm = cont.detectEdges(1)
 sigma = 5
 cont.get_narrowContSearchPxl(sigma)
 
-cont.filterOrientation(np.deg2rad(5))
 
-im = cont.enforceContinuity()
+cont.filterOrientation(np.deg2rad(5))
+cont.filterContinuity(polars, 3)
+
+#pylab.imshow(cont.image, cmap='gray')
+#pylab.show()
 
 im = cont.fillMissingArea()
 

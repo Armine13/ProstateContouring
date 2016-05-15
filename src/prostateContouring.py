@@ -13,6 +13,7 @@ Created on Tue May 10 22:39:10 2016
             detectEdges(self)
             get_narrowContSearchPxl(self, s = 10)
             filterOrientation(self, sigma_angle = np.deg2rad(15))
+            filterContinuity(self, polars, min_sz_label = 3)
         other
             skeletonOrientation(skel)
 """
@@ -133,54 +134,58 @@ class ProstateContouring:
                 self.image[y, x] = 0
         return self.image
 
-    def enforceContinuity(self):
+    def filterContinuity(self, polars, min_sz_label = 3):
         
-        arI = np.asarray(self.image) / np.max(np.max(self.image))
-
+        angles = polars[:,0]
+        radii = polars[:,1]
+        
         """Remove too small regions"""
-        labels_init = measure.label(arI)
+        labels_init = measure.label(self.image)
         max_lab = np.max(labels_init)
         for m in range(1,max_lab+1):
-            if((labels_init==m).sum()<3):
+            if((labels_init==m).sum()<min_sz_label):
                 mask = ~(labels_init==m)
-                arI = arI*mask
-
+                self.image = self.image*mask
+                    
         """Preallocate variables"""
         ray_w = 5 #width of the beam search
         half_w = int(ray_w/2)
         diag = np.zeros([102,ray_w])
-        new_img = arI
+#            new_img = self.image
         y = np.zeros(ray_w)
         x = np.zeros(ray_w)
-
-
-        for i in range(0,len(self.angles)):
-            labels = measure.label(new_img, neighbors=8 )
+        
+        
+        for i in range(0,len(angles)):
+        #for i in range(220,221):
+            labels = measure.label(self.image, neighbors=8 )
             """Get labels in a diagonal beam"""
             for j in range(0,100):
-                for s in range(-half_w,half_w+1):
-                    y[s+1] = int(np.round(self.yCenter+(j+s)*np.sin(-self.angles[i])))
-                    x[s+1] = int(np.round(self.xCenter+(j+s)*np.cos(self.angles[i])))
+                for s in range(-half_w,half_w+1):         
+                    y[s+1] = int(np.round(self.yCenter+(j+s)*np.sin(-angles[i])))
+                    x[s+1] = int(np.round(self.xCenter+(j+s)*np.cos(angles[i])))
                     diag[j][s+1] = labels[y[s+1],x[s+1]]
-
-        """Get number of labels in a beam"""
-        labDiag = np.array(list(set(diag[np.nonzero(diag)])))
-        nLab = len(labDiag)
-
-        """Get the size of each region detected"""
-        rp = measure.regionprops(labels)
-        sz_labels = np.zeros(nLab)
-        for k in range(0,nLab):
-            sz_labels[k] = (labels==labDiag[k]).sum()
-
-        """Discard the smallest edges if there are more than 1 edge in the beam"""
-        if(nLab>1):
-            #remove the smallest region from the image
-            min_lab = np.argmin(sz_labels)
-            ind_lab = ~(labels==labDiag[min_lab])
-            new_img = new_img*ind_lab
-
-        self.image = new_img
+        #        y = int(np.round(yCenter+radii[i]*np.sin(-angles[i])+j*np.sin(-angles[i])))
+        #        x = int(np.round(xCenter+radii[i]*np.cos(angles[i])+j*np.cos(angles[i])))
+                
+            """Get number of labels in a beam""" 
+            labDiag = np.array(list(set(diag[np.nonzero(diag)])))
+            nLab = len(labDiag)
+            
+            """Get the size of each region detected"""
+            rp = measure.regionprops(labels)
+            sz_labels = np.zeros(nLab)
+            for k in range(0,nLab):
+                sz_labels[k] = (labels==labDiag[k]).sum()        
+                    
+            """Discard the smallest edges if there are more than 1 edge in the beam"""       
+            if(nLab>1):
+                print (">1 label")                          
+                #remove the smallest region from the image
+                min_lab = np.argmin(sz_labels)
+                ind_lab = ~(labels==labDiag[min_lab])
+                self.image = self.image*ind_lab
+                
         return self.image
 
     def fillMissingArea(self):
@@ -243,6 +248,60 @@ class ProstateContouring:
 ##        return stdShape
 
 
+    def filterContinuity(self, polars, min_sz_label = 3):
+        
+        angles = polars[:,0]
+        radii = polars[:,1]
+        
+        """Remove too small regions"""
+        labels_init = measure.label(self.image)
+        max_lab = np.max(labels_init)
+        for m in range(1,max_lab+1):
+            if((labels_init==m).sum()<min_sz_label):
+                mask = ~(labels_init==m)
+                self.image = self.image*mask
+                    
+        """Preallocate variables"""
+        ray_w = 5 #width of the beam search
+        half_w = int(ray_w/2)
+        diag = np.zeros([102,ray_w])
+#            new_img = self.image
+        y = np.zeros(ray_w)
+        x = np.zeros(ray_w)
+        
+        
+        for i in range(0,len(angles)):
+        #for i in range(220,221):
+            labels = measure.label(self.image, neighbors=8 )
+            """Get labels in a diagonal beam"""
+            for j in range(0,100):
+                for s in range(-half_w,half_w+1):         
+                    y[s+1] = int(np.round(self.yCenter+(j+s)*np.sin(-angles[i])))
+                    x[s+1] = int(np.round(self.xCenter+(j+s)*np.cos(angles[i])))
+                    diag[j][s+1] = labels[y[s+1],x[s+1]]
+        #        y = int(np.round(yCenter+radii[i]*np.sin(-angles[i])+j*np.sin(-angles[i])))
+        #        x = int(np.round(xCenter+radii[i]*np.cos(angles[i])+j*np.cos(angles[i])))
+                
+            """Get number of labels in a beam""" 
+            labDiag = np.array(list(set(diag[np.nonzero(diag)])))
+            nLab = len(labDiag)
+            
+            """Get the size of each region detected"""
+            rp = measure.regionprops(labels)
+            sz_labels = np.zeros(nLab)
+            for k in range(0,nLab):
+                sz_labels[k] = (labels==labDiag[k]).sum()        
+                    
+            """Discard the smallest edges if there are more than 1 edge in the beam"""       
+            if(nLab>1):
+                print (">1 label")                          
+                #remove the smallest region from the image
+                min_lab = np.argmin(sz_labels)
+                ind_lab = ~(labels==labDiag[min_lab])
+                self.image = self.image*ind_lab
+                
+        return self.image
+            
 def skeletonOrientation(skel):
     """
         Independent function that returns array of orientations of each pixel in edges of image skel
