@@ -35,9 +35,10 @@ cont.filterContinuity(polars, 3)
 #pylab.show()
 
 im = cont.fillMissingArea()
+print (np.nonzero(im))
+#cont.createContour()
 
-cont.createContour()
-
-pylab.imshow(original, cmap=pylab.gray())
-pylab.imshow(cont.image,interpolation='none',alpha=0.5)
+#pylab.imshow(original, cmap=pylab.gray())
+#pylab.imshow(cont.image,interpolation='none',alpha=0.5)
+pylab.imshow(cont.image, cmap=pylab.gray())
 pylab.show()

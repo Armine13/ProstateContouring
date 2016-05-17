@@ -10,7 +10,7 @@ Created on Wed May 04 15:58:45 2016
 """
 #import numpy as np
 from tkinter import * #Change for Tkinter if python 2
-from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilename, askdirectory
 from PIL import Image, ImageTk
 
 import dicom
@@ -18,10 +18,13 @@ import os
 import numpy as np
 
 from skimage import img_as_float, img_as_ubyte
-from skimage import io
+from skimage import io as skio
 from skimage import feature
 from skimage import exposure
 from scipy import io
+
+from prostateContouring import *
+from readDICOMfiles import *
         
 """Create a class"""
 class Interface(Frame):
@@ -56,6 +59,9 @@ class Interface(Frame):
         self.button_center = Button(self, text="Click center", fg="red",
                                     command=self.click_center)
         self.button_center.pack(side="right")
+        
+        self.button_prop = Button(self, text="Propagate", command=self.propagateContour)
+        self.button_prop.pack(side="right")
        
         self.frame = Frame(self, bd=2, relief=SUNKEN)
         self.frame.grid_rowconfigure(0, weight=1)
@@ -96,37 +102,99 @@ class Interface(Frame):
 #        print (self.xCont, self.yCont)
         
     def process_img(self):
-#        self.pixels = list(self.img.getdata())
-#        width, height = self.img.size
-#        self.pixels = [self.pixels[i * width:(i + 1) * width] for i in range(1,height)]
-#        for i in range(self.xCenter, self.xCenter+100):
-#            for row in self.pixels:
-#                row[i] = 0
     
-#        Convert to array and apply contrast enhancement and canny
+        """Convert the image to array"""
         self.pixels = np.asarray(self.img.getdata(), np.uint8)
-        width, height = self.img.size
-        self.pixels = np.reshape(self.pixels, (height, width), order='A')
-        self.pixels = img_as_ubyte(exposure.equalize_hist(img_as_float(self.pixels)))
-        self.pixels = img_as_ubyte(feature.canny(img_as_float(self.pixels), sigma=1.0, low_threshold=0.1, high_threshold=0.4))
-        self.img = Image.fromarray(self.pixels, self.img.mode)
-                           
-#        Convert to Image and display in canvas
-        self.img_proc = Image.new(self.img.mode, self.img.size)
+        self.width, self.height = self.img.size
+        self.pixels = np.reshape(self.pixels, (self.height, self.width), order='A')
         
-        for i in range(0,len(self.xCont)):
-            self.img_proc.putpixel((self.xCont[i],self.yCont[i]),self.img.getpixel((self.xCont[i],self.yCont[i])))
+        """Call the prostate contouring class and process the img"""
+        cont = ProstateContouring(self.pixels, self.yCenter, self.xCenter)
+        polars = cont.polarFromContourImage(skio.imread('contour.png'))     
+        cont.readModelShape(polars)
+        cont.detectEdges(1)       
+        sigma = 5
+        cont.get_narrowContSearchPxl(sigma)                
+        cont.filterOrientation(np.deg2rad(5))
+        cont.filterContinuity(polars, 3)
+        cont.fillMissingArea()
+        cont.createContour()
+        self.contour = cont.image
         
-                
-        self.imgtk = ImageTk.PhotoImage(self.img_proc)
+        """Build a rgb image with contour in blue on top of original image"""
+        rgbImg = np.zeros((self.height, self.width, 3), 'uint8')
+        rgbImg[...,0] = self.pixels
+        rgbImg[...,1] = self.pixels
+        rgbImg[...,2] = self.pixels
+
+        index = np.nonzero(img_as_ubyte(cont.image))
+        rgbImg[index[0], index[1], 0] = 0
+        rgbImg[index[0], index[1], 1] = 0
+        rgbImg[index[0], index[1], 2] = 255
+        
+        """Convert back the result to PIL image and display in canvas"""
+        self.img = Image.fromarray(rgbImg)
+        self.imgtk = ImageTk.PhotoImage(self.img)
         self.canvas.create_image(0,0,image=self.imgtk,anchor="nw")
         self.canvas.config(scrollregion=self.canvas.bbox(ALL))
-#        io.imsave("pxlRemovedArray.png", self.pixels)
+        
+#        self.pixels = img_as_ubyte(exposure.equalize_hist(img_as_float(self.pixels)))
+#        self.pixels = img_as_ubyte(feature.canny(img_as_float(self.pixels), sigma=1.0, low_threshold=0.1, high_threshold=0.4))
+#        self.img = Image.fromarray(self.pixels, self.img.mode)
+                           
+#        Convert to Image and display in canvas
+                           
+#        self.img_proc = Image.new(self.img.mode, self.img.size)
+#        
+#        for i in range(0,len(self.xCont)):
+#            self.img_proc.putpixel((self.xCont[i],self.yCont[i]),self.img.getpixel((self.xCont[i],self.yCont[i])))
+#        
+    def propagateContour(self):
+        """Read an other image"""
+        image = np.asarray(self.dicomFiles.rescaleImg(33))
+        
+        """Call the prostate contouring class and process the img"""
+        cont = ProstateContouring(image, self.yCenter, self.xCenter)
+        polars = cont.polarFromContourImage(self.contour)     
+        cont.readModelShape(polars)
+        cont.detectEdges(1)       
+        sigma = 5
+        cont.get_narrowContSearchPxl(sigma)                
+        cont.filterOrientation(np.deg2rad(5))
+        cont.filterContinuity(polars, 3)
+        cont.fillMissingArea()
+        cont.createContour()        
+        self.contour = cont.image
+        
+        """Build a rgb image with contour in blue on top of original image"""
+        rgbImg = np.zeros((self.height, self.width, 3), 'uint8')
+        rgbImg[...,0] = image
+        rgbImg[...,1] = image
+        rgbImg[...,2] = image
+
+        index = np.nonzero(img_as_ubyte(cont.image))
+        rgbImg[index[0], index[1], 0] = 0
+        rgbImg[index[0], index[1], 1] = 0
+        rgbImg[index[0], index[1], 2] = 255
+        
+        """Convert back the result to PIL image and display in canvas"""
+        self.img = Image.fromarray(rgbImg)
+        self.imgtk = ImageTk.PhotoImage(self.img)
+        self.canvas.create_image(0,0,image=self.imgtk,anchor="nw")
+        self.canvas.config(scrollregion=self.canvas.bbox(ALL))
+        
         
     def openImg(self):
         #open image and display in canvas
-        File = askopenfilename(parent=fenetre, initialdir="C:/",title='Choose an image.')
-        self.img = Image.open(File)
+#        File = askopenfilename(parent=fenetre, initialdir="C:/",title='Choose an image.')
+#        self.img = Image.open(File)     
+    
+        Dir = askdirectory(parent=fenetre, initialdir="C:/",title='Choose a directory.')
+        self.dicomFiles = readDICOMfiles(Dir)
+        self.dicomFiles.readFolder()
+        image = self.dicomFiles.rescaleImg(32)
+        self.img = Image.fromarray(np.asarray(image))
+        
         self.imgtk = ImageTk.PhotoImage(self.img)
         self.canvas.create_image(0,0,image=self.imgtk,anchor="nw")
         self.canvas.config(scrollregion=self.canvas.bbox(ALL))
