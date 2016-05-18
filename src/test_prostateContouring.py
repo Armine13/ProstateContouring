@@ -28,15 +28,15 @@ sigma = 5
 cont.get_narrowContSearchPxl(sigma)
 
 
-cont.filterOrientation(np.deg2rad(5))
+cont.filterOrientation(np.deg2rad(10))
 cont.filterContinuity(polars, 3)
 
 #pylab.imshow(cont.image, cmap='gray')
 #pylab.show()
 
 im = cont.fillMissingArea()
-print (np.nonzero(im))
-#cont.createContour()
+#print (np.nonzero(im))
+cont.createContour()
 
 #pylab.imshow(original, cmap=pylab.gray())
 #pylab.imshow(cont.image,interpolation='none',alpha=0.5)
