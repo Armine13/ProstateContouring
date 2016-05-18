@@ -233,7 +233,7 @@ class ProstateContouring:
 
         contour = np.zeros(np.shape(self.image)) #same size as input image
         for i in range(0, angles_uniform.shape[0]):
-            contour[int(np.round(self.yCenter-distances_uniform[i]*np.sin(angles_uniform[i]))),int(np.round(self.xCenter+distances_uniform[i]*np.cos(angles_uniform[i])))] = 1
+            contour[int(np.round(self.yCenter+distances_uniform[i]*np.sin(angles_uniform[i]))),int(np.round(self.xCenter+distances_uniform[i]*np.cos(angles_uniform[i])))] = 1
         self.image = contour
         return contour
 
