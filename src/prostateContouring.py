@@ -35,7 +35,7 @@ class ProstateContouring:
             #polar coordinates: angle, radius, orientation of edge
         #""""
 
-        pol = np.empty((0,3), int)
+        pol_all = np.empty((0,3), int)
         sz = np.shape(contIm)
 
         #Find orientations in contour image
@@ -53,31 +53,32 @@ class ProstateContouring:
                     dy = i - cy
                     dx = j - cx
                     th = np.arctan2(-dy, dx)
-                    pol = np.append(pol, np.array([[th, r, contO[i, j]]]), axis=0)
+                    pol_all = np.append(pol_all, np.array([[th, r, contO[i, j]]]), axis=0)
 
         #Sort by increasing angles
-        pol = pol[pol[:,0].argsort()]
+        pol_all = pol_all[pol_all[:,0].argsort()]
 
-        return pol
-        #pol9 = np.empty((0,2), int)
-        #a = 180
-        #for i in range(20, 0, -1):
+##        return pol
+    
+        pol9 = np.empty((0,3), int)
+        a = 180
+        for i in range(20, 0, -1):
 
-            #temp = out;
-            #temp = out[np.rad2deg(out[:,0]) > (i-1)*9,:];
-            #temp = temp[np.rad2deg(temp[:,0]) <= i*9,:];
-            #for k in range(1, 10):
-                #pol9 = np.append(pol9, np.array([[np.deg2rad(a), np.mean(temp[:,1], axis=0)]]), axis=0)
-                #a = a - 1
+            temp = pol_all;
+            temp = pol_all[np.rad2deg(pol_all[:,0]) > (i-1)*9,:];
+            temp = temp[np.rad2deg(temp[:,0]) <= i*9,:];
+            for k in range(1, 10):
+                pol9 = np.append(pol9, np.array([[np.deg2rad(a), np.mean(temp[:,1], axis=0), np.mean(temp[:,2], axis=0)]]), axis=0)
+                a = a - 1
 
-        #for i in range(1, 21):
-            #temp = out;
-            #temp = out[np.rad2deg(out[:,0]) <= -(i-1)*9,:];
-            #temp = temp[np.rad2deg(temp[:,0]) > -i*9,:];
-            #for k in range(1, 10):
-                #pol9 = np.append(pol9, np.array([[np.deg2rad(a), np.mean(temp[:,1], axis=0)]]), axis=0)
-                #a = a - 1
-        #return pol9
+        for i in range(1, 21):
+            temp = pol_all;
+            temp = pol_all[np.rad2deg(pol_all[:,0]) <= -(i-1)*9,:];
+            temp = temp[np.rad2deg(temp[:,0]) > -i*9,:];
+            for k in range(1, 10):
+                pol9 = np.append(pol9, np.array([[np.deg2rad(a), np.mean(temp[:,1], axis=0), np.mean(temp[:,2], axis=0)]]), axis=0)
+                a = a - 1
+        return pol9
 
     def readModelShape(self, array):
         """ Takes the file containing prostate shape in polar coordinates"""
@@ -189,6 +190,7 @@ class ProstateContouring:
         return self.image
 
     def fillMissingArea(self):
+        
         c = 0
         for i in range(0, self.radii.shape[0]):
             noEdge = True
