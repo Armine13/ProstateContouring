@@ -35,7 +35,7 @@ class ProstateContouring:
             #polar coordinates: angle, radius, orientation of edge
         #""""
 
-        pol_all = np.empty((0,3), int)
+        pol_all = np.empty((0,3), int)#polars for all pixels
         sz = np.shape(contIm)
 
         #Find orientations in contour image
@@ -58,9 +58,7 @@ class ProstateContouring:
         #Sort by increasing angles
         pol_all = pol_all[pol_all[:,0].argsort()]
 
-##        return pol
-    
-        pol9 = np.empty((0,3), int)
+        pol9 = np.empty((0,3), int)#polars averaged for every 9 degrees(size - 180 x 3)
         a = 180
         for i in range(20, 0, -1):
 
