@@ -1,3 +1,5 @@
 http://stackoverflow.com/questions/5501192/how-to-display-picture-and-get-mouse-click-coordinate-on-it
 http://apprendre-python.com/page-tkinter-interface-graphique-python-tutoriel
 http://fr.mathworks.com/matlabcentral/answers/88714-how-to-find-the-direction-angle-of-points-on-an-edge-in-a-digital-image
+https://sourceforge.net/p/cx-freeze/mailman/message/34619930/
+http://cx-freeze.readthedocs.io/en/latest/index.html

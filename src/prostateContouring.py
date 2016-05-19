@@ -86,7 +86,7 @@ class ProstateContouring:
         self.orients = array[:,2]
 
     def detectEdges(self, canny_sigma):
-        self.image = feature.canny(self.image, sigma=canny_sigma)#, low_threshold=0.001, high_threshold=0.005)
+        self.image = feature.canny(self.image, sigma=canny_sigma, low_threshold=0.1, high_threshold=0.4)
         return self.image
 
     def get_narrowContSearchPxl(self, s = 10):
