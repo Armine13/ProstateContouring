@@ -192,7 +192,7 @@ class ProstateContouring:
         c = 0
         for i in range(0, self.radii.shape[0]):
             noEdge = True
-            for j in range(-self.sigma, self.sigma + 1):
+            for j in range(-self.sigma*2, self.sigma*2 + 1):
                 x = int(np.round(self.xCenter+self.radii[i]*np.cos(self.angles[i])+j*np.cos(self.angles[i])))
                 y = int(np.round(self.yCenter+self.radii[i]*np.sin(-self.angles[i])+j*np.sin(-self.angles[i])))
                 if self.image[y, x] > 0:
