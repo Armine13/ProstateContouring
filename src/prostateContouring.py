@@ -206,7 +206,7 @@ class ProstateContouring:
                     self.image[int(np.round(self.yCenter-self.radii[i-4]*np.sin(self.angles[i-4]))), int(np.round(self.xCenter+self.radii[i-4]*np.cos(self.angles[i-4])))] = 1
         return self.image
 
-    def createContour(self):
+     def createContour(self, withSnake = False):
         y, x = numpy.nonzero(self.image)
 
         C = (x - self.xCenter) + 1j * (y - self.yCenter)
@@ -234,8 +234,40 @@ class ProstateContouring:
         contour = np.zeros(np.shape(self.image)) #same size as input image
         for i in range(0, angles_uniform.shape[0]):
             contour[int(np.round(self.yCenter+distances_uniform[i]*np.sin(angles_uniform[i]))),int(np.round(self.xCenter+distances_uniform[i]*np.cos(angles_uniform[i])))] = 1
+
         self.image = contour
-        return contour
+        if not withSnake:
+            return  self.image
+
+        s = np.linspace(0, 2*np.pi, 400)
+        r = np.max(self.radii)*1.3
+        x = self.xCenter + r*np.cos(s)
+        y = self.yCenter + r*np.sin(s)
+        init = np.array([x, y]).T
+
+        snake = active_contour(gaussian(self.image, 3),
+                               init, alpha=0.3,w_line = 2000,max_px_move =0.2, gamma=0.01)
+
+        snake_contour = np.zeros(np.shape(self.image))
+
+        snake = np.round(snake)
+        snake = snake.astype(int)
+
+        fullSnake = []
+        for i in range(1, snake.shape[0]):
+                l = line(snake[i - 1, 1], snake[i - 1, 0], snake[i, 1], snake[i, 0])
+                [fullSnake.append(ll) for ll in l]
+                
+        l = line(snake[0, 1], snake[0, 0], snake[-1, 1], snake[-1, 0])
+        [fullSnake.append(ll) for ll in l]
+
+        snake_contour = np.zeros(np.shape(self.image))
+        for (y, x) in fullSnake:
+                snake_contour[y, x] = 1
+
+        self.image = snake_contour
+        
+        return self.image
 
 
 ##        
